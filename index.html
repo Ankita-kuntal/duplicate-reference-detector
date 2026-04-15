@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Duplicate Reference Detector — Ankita Kuntal</title>
+  <style>
+    body { font-family: sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; }
+    h1 { font-size: 1.4em; }
+    .subtitle { color: #555; font-size: 0.9em; margin-top: -10px; }
+    input { width: 100%; padding: 10px; font-size: 1em; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    button { margin-top: 10px; padding: 10px 24px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; }
+    button:hover { background: #1976D2; }
+    .result { margin-top: 20px; padding: 14px; border-radius: 4px; font-size: 0.95em; }
+    .duplicate { background: #fff3cd; border: 1px solid #ffc107; }
+    .new-ref { background: #d4edda; border: 1px solid #28a745; }
+    .existing-list { margin-top: 24px; }
+    .existing-list h3 { font-size: 1em; color: #333; }
+    .ref-item { background: #f4f4f4; padding: 8px 12px; border-radius: 4px; margin: 4px 0; font-size: 0.85em; font-family: monospace; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.78em; margin-left: 8px; }
+    .badge-url { background: #e3f2fd; color: #1565c0; }
+    .badge-doi { background: #f3e5f5; color: #6a1b9a; }
+    .badge-isbn { background: #e8f5e9; color: #2e7d32; }
+  </style>
+</head>
+<body>
+  <h1>Duplicate Reference Detector</h1>
+  <p class="subtitle">
+    Prototype for Outreachy Wishlist #3 — Visual Editor Duplicate Reference Detection<br>
+    <em>Simulates the local InternalList check that would run inside ve.ui.MWCitoidInspector</em>
+  </p>
+
+  <div class="existing-list">
+    <h3>Existing references in this article (simulated InternalList):</h3>
+    <div id="refList"></div>
+  </div>
+
+  <br>
+  <label><strong>Enter a new reference identifier (URL, DOI, or ISBN):</strong></label><br><br>
+  <input type="text" id="inputRef" placeholder="e.g. https://example.com/article  or  10.1000/xyz123  or  978-3-16-148410-0" />
+  <button onclick="runCheck()">Check for Duplicate</button>
+
+  <div id="result"></div>
+
+  <script src="detector.js"></script>
+  <script>
+    // Simulated existing references — mirrors what VE's InternalList holds
+    const existingRefs = [
+      { name: 'ref-example',   identifier: 'https://example.com/article/' },
+      { name: 'ref-doi-xyz',   identifier: 'https://doi.org/10.1000/xyz123' },
+      { name: 'ref-isbn-book', identifier: '978-3-16-148410-0' },
+      { name: 'ref-news',      identifier: 'http://www.bbc.com/news/science-12345' },
+    ];
+
+    const detector = new DuplicateDetector();
+    detector.loadRefs(existingRefs);
+
+    // Render existing refs
+    const listEl = document.getElementById('refList');
+    for (const ref of existingRefs) {
+      const type = detectType(ref.identifier);
+      listEl.innerHTML += `<div class="ref-item">${ref.identifier} <span class="badge badge-${type}">${type.toUpperCase()}</span></div>`;
+    }
+
+    function runCheck() {
+      const input = document.getElementById('inputRef').value.trim();
+      const resultEl = document.getElementById('result');
+      if (!input) { resultEl.innerHTML = ''; return; }
+
+      const result = detector.check(input);
+
+      if (result.isDuplicate) {
+        resultEl.innerHTML = `
+          <div class="result duplicate">
+            ⚠️ <strong>Duplicate detected!</strong><br><br>
+            This ${result.type.toUpperCase()} already exists in the article as 
+            <strong>${result.existing.name}</strong>.<br>
+            <em>Original: ${result.existing.identifier}</em><br><br>
+            → In the Visual Editor, this would prompt: <strong>"Reuse existing reference?"</strong>
+          </div>`;
+      } else {
+        resultEl.innerHTML = `
+          <div class="result new-ref">
+            ✅ <strong>No duplicate found.</strong><br><br>
+            Detected type: <strong>${result.type.toUpperCase()}</strong><br>
+            Normalized key: <code>${result.normalizedKey}</code><br><br>
+            → This reference can be safely added.
+          </div>`;
+      }
+    }
+
+    // Allow Enter key
+    document.getElementById('inputRef').addEventListener('keydown', e => {
+      if (e.key === 'Enter') runCheck();
+    });
+  </script>
+</body>
+</html>
